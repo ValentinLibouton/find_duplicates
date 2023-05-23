@@ -5,25 +5,35 @@ import datetime
 import csv
 from collections import Counter
 from itertools import groupby
+from tqdm import tqdm
 
 def get_file_info(file_path):
     file_name = os.path.basename(file_path)
-    modified_time = datetime.datetime.fromtimestamp(os.path.getmtime(file_path))
+    try:
+        modified_time = datetime.datetime.fromtimestamp(os.path.getmtime(file_path))
+    except FileNotFoundError:
+        modified_time = None
     file_size = os.path.getsize(file_path)
     absolute_path = os.path.abspath(file_path)
     return [file_name, modified_time, file_size, absolute_path]
 
 def search_files(directory):
     file_list = []
-    for root, _, files in os.walk(directory):
-        for file in files:
-            file_path = os.path.join(root, file)
-            file_info = get_file_info(file_path)
-            file_list.append(file_info)
+    file_count = sum(len(files) for _, _, files in os.walk(directory))
+    with tqdm(total=file_count) as pbar:
+        for root, _, files in os.walk(directory):
+            for file in files:
+                file_path = os.path.join(root, file)
+                try:
+                    file_info = get_file_info(file_path)
+                    file_list.append(file_info)
+                except FileNotFoundError:
+                    pass # Skip the file and continue
+                pbar.update(1)
     return file_list
 
 def sort_files(file_list):
-    sorted_files = sorted(file_list, key=lambda x: (x[0][0], x[0][1], x[0][2]) if x else [])
+    sorted_files = sorted(file_list, key=lambda x: (x[0], x[1], x[2]) if len(x) >= 3 else [])
     return sorted_files
 
 def output_to_terminal(file_list):
